@@ -240,7 +240,10 @@ def predict_single_fight():
     try:
         result_df = predict_winners(fighter_data)
     except Exception as e:
-        return jsonify({"error": f"Prediction failed: {str(e)}"}), 500
+        return jsonify({
+            "winner": "Cannot conclude",
+            "reason": "Model predictions do not agree or missing data"
+        }), 500
 
     winner_row = result_df.iloc[0]
 
