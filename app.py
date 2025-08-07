@@ -25,7 +25,7 @@ data = pd.read_csv(data_path)
 df_fighter = pd.read_csv(fighter_details_path)
 df_ufc = pd.read_csv(ufc_data_path)
 
-df_events = df_ufc[['event_id', 'event_name', 'location', 'date']].copy()
+df_events = df_ufc[['event_id', 'event_name', 'location', 'date', 'division', 'title_fight', 'r_id', 'r_name', 'b_id', 'b_name', 'winner', 'winner_id']].copy()
 df_events.drop_duplicates(inplace=True)
 df_events = df_events.sort_values(by='date', ascending=False)
 
@@ -174,6 +174,7 @@ def get_fighter_details():
 def home():
     return '<h1>API WORKING!!</h1>'
 
+
 @app.route('/event-details', methods=['GET'])
 def get_event_details_pagen():
     page = int(request.args.get('page', 1))
@@ -198,7 +199,7 @@ def get_event_details_pagen():
         "total_pages": total_pages,
         "results": page_df.to_dict(orient='records')
     })
-    
+
 @app.route('/event-details-by-id', methods=['GET'])
 def get_event_details_by_id():
     event_id = request.args.get('event_id')
