@@ -26,7 +26,7 @@ data = pd.read_csv(data_path)
 df_fighter = pd.read_csv(fighter_details_path)
 df_ufc = pd.read_csv(ufc_data_path)
 
-df_events = df_ufc[['event_id', 'event_name', 'location', 'date', 'division', 'title_fight', 'r_id', 'r_name', 'b_id', 'b_name', 'winner', 'winner_id']].copy()
+df_events = df_ufc[['event_id', 'fight_id','event_name', 'location', 'date', 'division', 'title_fight', 'r_id', 'r_name', 'b_id', 'b_name', 'winner', 'winner_id']].copy()
 df_events.drop_duplicates(inplace=True)
 df_events = df_events.sort_values(by='date', ascending=False)
 
@@ -177,9 +177,9 @@ def home():
 
 
 @app.route('/event-details', methods=['GET'])
-def get_event_details_pagen():
+def get_event_details_page():
     page = int(request.args.get('page', 1))
-    per_page = 10
+    per_page = 20
     total_items = len(df_events)
     total_pages = (total_items + per_page - 1) // per_page
 
@@ -197,8 +197,8 @@ def get_event_details_pagen():
 
     df_pred = pd.read_csv(pred_csv_path)
     page_df = page_df.merge(
-            df_pred[['event_id', 'fight_id', 'pred_winner_id', 'pred_winner_name']],
-            on="event_id",
+            df_pred[['fight_id', 'pred_winner_id', 'pred_winner_name']],
+            on="fight_id",
             how="left"
         )
     return jsonify({
