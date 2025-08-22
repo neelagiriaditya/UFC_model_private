@@ -18,6 +18,7 @@ data_path = "predictor_file.csv"
 fighter_details_path = "fighter_details.csv"
 ufc_data_path = "UFC.csv"
 model_path = "logistic_model.joblib"
+pred_csv_path = "pred.csv"
 
 model = joblib.load(model_path)
 
@@ -140,7 +141,7 @@ def predict_winners(fighter_id_data):
         else:
             return pd.Series([None, None], index=['winner_id', 'winner_name'])
 
-    pred_table[['winner_id', 'winner_name']] = pred_table.apply(find_winner, axis=1)
+    pred_table[['pred_winner_id', 'pred_winner_name']] = pred_table.apply(find_winner, axis=1)
     return pred_table
 
 @app.route('/predict_upcoming_event', methods=['GET'])
@@ -151,7 +152,7 @@ def predict_upcoming_event():
     fighter_data = get_fighter_ids(session, fight_links)
     result_df = predict_winners(fighter_data)
 
-    result = result_df[['r_id', 'r_name', 'b_id', 'b_name', 'winner_id', 'winner_name']].to_dict(orient='records')
+    result = result_df[['r_id', 'r_name', 'b_id', 'b_name', 'pred_winner_id', 'pred_winner_name']].to_dict(orient='records')
     return jsonify({'event': event_name, 'predictions': result})
 
 
@@ -194,6 +195,12 @@ def get_event_details_pagen():
 
     page_df = df_events.iloc[start_idx:end_idx]
 
+    df_pred = pd.read_csv(pred_csv_path)
+    page_df = page_df.merge(
+            df_pred[['event_id', 'fight_id', 'pred_winner_id', 'pred_winner_name']],
+            on="event_id",
+            how="left"
+        )
     return jsonify({
         "page": page,
         "total_pages": total_pages,
@@ -207,12 +214,46 @@ def get_event_details_by_id():
     if not event_id:
         return jsonify({"error": "Missing 'event_id' parameter"}), 400
 
+    # Find the event in df_events
     event = df_events[df_events['event_id'] == event_id]
-
     if event.empty:
         return jsonify({"error": "Event not found", "event_id": event_id}), 404
 
-    return jsonify(event.to_dict(orient='records')[0])
+    event_details = event.to_dict(orient='records')[0]
+
+    # ---- Load predictions (pred.csv) ----
+    pred_csv_path = Path(__file__).resolve().parent.parent / "4_model" / "pred.csv"
+    df_pred = pd.DataFrame()
+    if pred_csv_path.exists():
+        df_pred = pd.read_csv(pred_csv_path)
+
+    # ---- Load actual results from df (main fights dataframe) ----
+    fights_df = df_ufc[df_ufc['event_id'] == event_id][[
+        'fight_id', 'r_id', 'r_name', 'b_id', 'b_name', 'winner', 'winner_id'
+    ]].copy()
+
+    # Derive actual winner_name from winner_id
+    fights_df['winner_name'] = fights_df.apply(
+        lambda row: row['r_name'] if row['winner_id'] == row['r_id']
+        else (row['b_name'] if row['winner_id'] == row['b_id'] else None),
+        axis=1
+    )
+
+    # ---- Merge with predictions ----
+    if not df_pred.empty:
+        fights_df = fights_df.merge(
+            df_pred[['fight_id', 'pred_winner_id', 'pred_winner_name']],
+            on='fight_id',
+            how='left'
+        )
+    else:
+        fights_df['pred_winner_id'] = None
+        fights_df['pred_winner_name'] = None
+
+    # Attach fight-level details to the event
+    event_details["fights"] = fights_df.to_dict(orient='records')
+
+    return jsonify(event_details)
 
 
 @app.route('/search-fighter', methods=['GET'])
