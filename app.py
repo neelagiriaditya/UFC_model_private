@@ -221,12 +221,10 @@ def get_event_details_by_id():
 
     event_details = event.to_dict(orient='records')[0]
 
-    # ---- Load predictions (pred.csv) ----
-    df_pred = pd.DataFrame()
-    if pred_csv_path.exists():
-        df_pred = pd.read_csv(pred_csv_path)
+    # ---- Load predictions (pred.csv always exists) ----
+    df_pred = pd.read_csv(pred_csv_path)
 
-    # ---- Load actual results from df (main fights dataframe) ----
+    # ---- Load actual results from df_ufc ----
     fights_df = df_ufc[df_ufc['event_id'] == event_id][[
         'fight_id', 'r_id', 'r_name', 'b_id', 'b_name', 'winner', 'winner_id'
     ]].copy()
@@ -239,15 +237,11 @@ def get_event_details_by_id():
     )
 
     # ---- Merge with predictions ----
-    if not df_pred.empty:
-        fights_df = fights_df.merge(
-            df_pred[['fight_id', 'pred_winner_id', 'pred_winner_name']],
-            on='fight_id',
-            how='left'
-        )
-    else:
-        fights_df['pred_winner_id'] = None
-        fights_df['pred_winner_name'] = None
+    fights_df = fights_df.merge(
+        df_pred[['fight_id', 'pred_winner_id', 'pred_winner_name']],
+        on='fight_id',
+        how='left'
+    )
 
     # Attach fight-level details to the event
     event_details["fights"] = fights_df.to_dict(orient='records')
