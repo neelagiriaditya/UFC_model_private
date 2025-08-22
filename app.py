@@ -222,7 +222,6 @@ def get_event_details_by_id():
     event_details = event.to_dict(orient='records')[0]
 
     # ---- Load predictions (pred.csv) ----
-    pred_csv_path = Path(__file__).resolve().parent.parent / "4_model" / "pred.csv"
     df_pred = pd.DataFrame()
     if pred_csv_path.exists():
         df_pred = pd.read_csv(pred_csv_path)
