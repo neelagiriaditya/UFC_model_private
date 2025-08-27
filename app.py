@@ -313,7 +313,7 @@ def predict_single_fight():
     })
 
 
-@app.route("/get-fighter-fights", methods=['GET'])
+@app.route("/", methods=['GET'])
 def get_fighter_fights():
     fighter_id = request.args.get('fighter_id')
 
