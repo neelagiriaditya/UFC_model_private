@@ -19,12 +19,14 @@ fighter_details_path = "fighter_details.csv"
 ufc_data_path = "UFC.csv"
 model_path = "logistic_model.joblib"
 pred_csv_path = "pred.csv"
+fight_details_path = "fight_details.csv"
 
 model = joblib.load(model_path)
 
 data = pd.read_csv(data_path)
 df_fighter = pd.read_csv(fighter_details_path)
 df_ufc = pd.read_csv(ufc_data_path)
+df_fight = pd.read_csv(fight_details_path)
 
 df_events = df_ufc[['event_id', 'fight_id','event_name', 'location', 'date', 'division', 'title_fight', 'r_id', 'r_name', 'b_id', 'b_name', 'winner', 'winner_id']].copy()
 df_events.drop_duplicates(inplace=True)
@@ -282,21 +284,39 @@ def predict_single_fight():
 
     winner_row = result_df.iloc[0]
 
-    if pd.isna(winner_row['winner_id']):
+    if pd.isna(winner_row['pred_winner_id']):
         return jsonify({
             "winner": "Inconclusive",
             "reason": "Model predictions do not agree or missing data"
         })
 
     return jsonify({
-        "red_id": r_id,
-        "red_name": winner_row['r_name'],
-        "blue_id": b_id,
-        "blue_name": winner_row['b_name'],
-        "winner_id": winner_row['winner_id'],
-        "winner_name": winner_row['winner_name']
+        "r_id": r_id,
+        "r_name": winner_row['r_name'],
+        "b_id": b_id,
+        "b_name": winner_row['b_name'],
+        "pred_winner_id": winner_row['pred_winner_id'],
+        "pred_winner_name": winner_row['pred_winner_name']
     })
 
-    
+
+@app.route("/get-fighter-fights", methods=['GET'])
+def get_fighter_fights():
+    fighter_id = request.args.get('fighter_id')
+
+    if not fighter_id:
+        return jsonify({"error": "Missing 'fighter_id' parameter"}), 400
+
+    fighter_fights = df_fight[(df_fight['r_id'] == fighter_id) | (df_fight['b_id'] == fighter_id)]
+    fighter_fights = fighter_fights.merge(
+        df_events[['fight_id', 'winner_id', 'winner']],
+        on='fight_id',
+        how='left'
+    )
+    if fighter_fights.empty:
+        return jsonify({"error": "No fights found for this fighter", "fighter_id": fighter_id}), 404
+    # print(f"Number of fights found for fighter {fighter_id}: {len(fighter_fights)}")
+    return jsonify(fighter_fights.to_dict(orient='records'))
+
 if __name__ == '__main__':
     app.run()
