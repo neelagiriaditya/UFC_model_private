@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 import joblib
 import time
+import math
 from threading import Lock
 
 app = Flask(__name__)
@@ -34,6 +35,18 @@ df_events = df_events.sort_values(by='date', ascending=False)
 
 r_df = data.add_prefix('r_')
 b_df = data.add_prefix('b_')
+
+def replace_nan(obj):
+    if isinstance(obj, dict):
+        return {k: replace_nan(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [replace_nan(i) for i in obj]
+    elif isinstance(obj, float):
+        if math.isnan(obj):
+            return None
+        if math.isinf(obj): 
+            return None
+    return obj
 
 def create_session():
     session = requests.Session()
@@ -313,10 +326,14 @@ def get_fighter_fights():
         on='fight_id',
         how='left'
     )
+
     if fighter_fights.empty:
         return jsonify({"error": "No fights found for this fighter", "fighter_id": fighter_id}), 404
-    # print(f"Number of fights found for fighter {fighter_id}: {len(fighter_fights)}")
-    return jsonify(fighter_fights.to_dict(orient='records'))
+
+    raw_data = fighter_fights.to_dict(orient='records')
+    clean_data = replace_nan(raw_data)
+
+    return jsonify(clean_data)
 
 if __name__ == '__main__':
     app.run()
